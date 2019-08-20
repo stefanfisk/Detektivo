@@ -31,7 +31,9 @@ $app->module('detektivo')->extend([
         if (isset($collections[$collection])) {
 
             if ($collections[$collection] == '*') {
-                $fields = array_keys($entry);
+                $_collection = $this->app->module('collections')->collection($collection);
+
+                $fields = array_keys($_collection['fields']);
             } else {
                 $fields = $collections[$collection];
             }
@@ -40,6 +42,46 @@ $app->module('detektivo')->extend([
         }
 
         return null;
+    },
+
+    'value' => function ($entry, $field) {
+        $keys = explode('.', $field);
+
+        $walk = function ($value, $keys) use (&$walk) {
+            $key = array_shift($keys);
+
+            if ($key === '@each') {
+                if (!is_array($value)) {
+                    return null;
+                }
+
+                $values = array_map(function($value) use ($walk, $keys) {
+                    return $walk($value, $keys);
+                }, $value);
+
+                $values = array_filter($values);
+
+                $value = implode(' ', $values);
+
+                return $value;
+            }
+
+            if (!isset($value[$key])) {
+                return null;
+            }
+
+            $value = $value[$key];
+
+            if ($keys) {
+                return $walk($value, $keys);
+            }
+
+            return $value;
+        };
+
+        $value = $walk($entry, $keys);
+
+        return $value;
     },
 
     'storage' => function() {
@@ -76,7 +118,9 @@ $app->on('cockpit.bootstrap', function() {
             $data = ['_id' => $entry['_id']];
 
             foreach ($fields as $field) {
-                if (isset($entry[$field])) { $data[$field] = $entry[$field]; }
+                if ($value = $this->module('detektivo')->value($entry, $field)) {
+                    $data[$field] = $value;
+                }
             }
 
             if (count($data)) {

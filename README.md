@@ -30,7 +30,12 @@ detektivo:
 ```
 detektivo:
     collections:
-        posts: [title, excerpt, content]
+        posts: [
+            title,
+            excerpt,
+            contentBlocks.@each.title
+            contentBlocks.@each.content
+        ]
 ```
 
 
